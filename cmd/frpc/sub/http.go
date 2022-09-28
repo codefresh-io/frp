@@ -36,7 +36,7 @@ func init() {
 	httpCmd.PersistentFlags().StringVarP(&locations, "locations", "", "", "locations")
 	httpCmd.PersistentFlags().StringVarP(&httpUser, "http_user", "", "", "http auth user")
 	httpCmd.PersistentFlags().StringVarP(&httpPwd, "http_pwd", "", "", "http auth password")
-	httpCmd.PersistentFlags().StringVarP(&ipsAllowList, "ips_allow_list", "", "", "ips allow list - lists the rules to configure which IP addresses and subnet masks can access your client (e.g \"192.168.0.0/16, 255.255.0.0\")")
+	httpCmd.PersistentFlags().StringVarP(&ipsAllowList, "ips_allow_list", "", "", "lists the rules to configure which IP addresses and subnet masks can access your client (e.g \"192.168.0.0/16, 255.255.0.0\")")
 	httpCmd.PersistentFlags().StringVarP(&hostHeaderRewrite, "host_header_rewrite", "", "", "host header rewrite")
 	httpCmd.PersistentFlags().BoolVarP(&useEncryption, "ue", "", false, "use encryption")
 	httpCmd.PersistentFlags().BoolVarP(&useCompression, "uc", "", false, "use compression")
