@@ -388,7 +388,7 @@ var _ = Describe("[Feature: HTTP]", func() {
 		f.RunServer("", newHTTPServer(barPort, "bar"))
 
 		bazPort := f.AllocPort()
-		f.RunServer("", newHTTPServer(barPort, "baz"))
+		f.RunServer("", newHTTPServer(bazPort, "baz"))
 
 		clientConf := consts.DefaultClientConfig
 		clientConf += fmt.Sprintf(`
@@ -431,9 +431,9 @@ var _ = Describe("[Feature: HTTP]", func() {
 			Ensure()
 
 		// The request should fail with 403 status code due to invalid ip
-		framework.NewRequestExpect(f).Explain("bar subdomain").Port(vhostHTTPPort).
+		framework.NewRequestExpect(f).Explain("baz subdomain").Port(vhostHTTPPort).
 			RequestModify(func(r *request.Request) {
-				r.HTTP().HTTPHost("bar.example.com")
+				r.HTTP().HTTPHost("baz.example.com")
 			}).
 			Ensure(framework.ExpectResponseCode(403))
 	})
