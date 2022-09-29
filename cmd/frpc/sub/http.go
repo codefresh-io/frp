@@ -68,10 +68,12 @@ var httpCmd = &cobra.Command{
 		cfg.Locations = strings.Split(locations, ",")
 		cfg.HTTPUser = httpUser
 		cfg.HTTPPwd = httpPwd
-		cfg.IpsAllowList = strings.Split(ipsAllowList, ",")
 		cfg.HostHeaderRewrite = hostHeaderRewrite
 		cfg.UseEncryption = useEncryption
 		cfg.UseCompression = useCompression
+		if ipsAllowList != "" {
+			cfg.IpsAllowList = strings.Split(ipsAllowList, ",")
+		}
 
 		err = cfg.CheckForCli()
 		if err != nil {

@@ -124,7 +124,7 @@ func NewHTTPReverseProxy(option HTTPReverseProxyOptions, vhostRouter *Routers) *
 // Register register the route config to reverse proxy
 // reverse proxy will use CreateConnFn from routeCfg to create a connection to the remote service
 func (rp *HTTPReverseProxy) Register(routeCfg RouteConfig) error {
-	err := rp.vhostRouter.Add(routeCfg.Domain, routeCfg.Location, routeCfg.RouteByHTTPUser, &routeCfg)
+	err := rp.vhostRouter.Add(routeCfg.Domain, routeCfg.Location, routeCfg.RouteByHTTPUser, routeCfg.IpsAllowList, &routeCfg)
 	if err != nil {
 		return err
 	}

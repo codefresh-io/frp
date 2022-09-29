@@ -93,7 +93,7 @@ func (g *HTTPGroup) Register(
 		// the first proxy in this group
 		tmp := routeConfig // copy object
 		tmp.CreateConnFn = g.createConn
-		err = g.ctl.vhostRouter.Add(routeConfig.Domain, routeConfig.Location, routeConfig.RouteByHTTPUser, &tmp)
+		err = g.ctl.vhostRouter.Add(routeConfig.Domain, routeConfig.Location, routeConfig.RouteByHTTPUser, routeConfig.IpsAllowList, &tmp)
 		if err != nil {
 			return
 		}

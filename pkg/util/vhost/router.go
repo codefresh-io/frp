@@ -37,7 +37,7 @@ func NewRouters() *Routers {
 	}
 }
 
-func (r *Routers) Add(domain, location, httpUser string, payload interface{}) error {
+func (r *Routers) Add(domain, location, httpUser string, ipAllowList []string, payload interface{}) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -55,9 +55,9 @@ func (r *Routers) Add(domain, location, httpUser string, payload interface{}) er
 	}
 
 	var ipValidator *ipfilter.IPFilter
-	if payload.(*RouteConfig).IpsAllowList != nil {
+	if ipAllowList != nil {
 		ipValidator = ipfilter.New(ipfilter.Options{
-			AllowedIPs:     payload.(*RouteConfig).IpsAllowList,
+			AllowedIPs:     ipAllowList,
 			BlockByDefault: true,
 		})
 	}
