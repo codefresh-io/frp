@@ -189,8 +189,8 @@ func (rp *HTTPReverseProxy) CheckRemoteAddress(domain, location, routeByHTTPUser
 	remoteAddWithoutPort := strings.Split(remoteAdd, ":")[0]
 	vr, ok := rp.getVhost(domain, location, routeByHTTPUser)
 	if ok {
-		if vr.ipValidator != nil {
-			return vr.ipValidator.Allowed(remoteAddWithoutPort)
+		if vr.ipFilter != nil {
+			return vr.ipFilter.Allowed(remoteAddWithoutPort)
 		}
 	}
 	return true

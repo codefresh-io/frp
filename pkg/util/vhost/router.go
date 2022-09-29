@@ -22,10 +22,10 @@ type Routers struct {
 }
 
 type Router struct {
-	domain      string
-	location    string
-	httpUser    string
-	ipValidator *ipfilter.IPFilter
+	domain   string
+	location string
+	httpUser string
+	ipFilter *ipfilter.IPFilter
 
 	// store any object here
 	payload interface{}
@@ -54,20 +54,20 @@ func (r *Routers) Add(domain, location, httpUser string, ipAllowList []string, p
 		vrs = make([]*Router, 0, 1)
 	}
 
-	var ipValidator *ipfilter.IPFilter
+	var ipFilter *ipfilter.IPFilter
 	if ipAllowList != nil {
-		ipValidator = ipfilter.New(ipfilter.Options{
+		ipFilter = ipfilter.New(ipfilter.Options{
 			AllowedIPs:     ipAllowList,
 			BlockByDefault: true,
 		})
 	}
 
 	vr := &Router{
-		domain:      domain,
-		location:    location,
-		httpUser:    httpUser,
-		ipValidator: ipValidator,
-		payload:     payload,
+		domain:   domain,
+		location: location,
+		httpUser: httpUser,
+		ipFilter: ipFilter,
+		payload:  payload,
 	}
 	vrs = append(vrs, vr)
 	sort.Sort(sort.Reverse(ByLocation(vrs)))
