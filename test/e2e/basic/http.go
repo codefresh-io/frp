@@ -373,4 +373,51 @@ var _ = Describe("[Feature: HTTP]", func() {
 		framework.ExpectNoError(err)
 		framework.ExpectEqualValues(consts.TestString, string(msg))
 	})
+
+	It("Ip allow list", func() {
+		vhostHTTPPort := f.AllocPort()
+		serverConf := getDefaultServerConf(vhostHTTPPort)
+		serverConf += `
+		subdomain_host = example.com
+		`
+
+		fooPort := f.AllocPort()
+		f.RunServer("", newHTTPServer(fooPort, "foo"))
+
+		barPort := f.AllocPort()
+		f.RunServer("", newHTTPServer(barPort, "bar"))
+
+		clientConf := consts.DefaultClientConfig
+		clientConf += fmt.Sprintf(`
+			[foo]
+			type = http
+			local_port = %d
+			subdomain = foo
+			ips_allow_list = "127.0.0.1/16"
+
+
+			[bar]
+			type = http
+			local_port = %d
+			subdomain = bar
+			ips_allow_list = "127.1.0.1/16"
+			`, fooPort, barPort)
+
+		f.RunProcesses([]string{serverConf}, []string{clientConf})
+
+		// The request should pass and return the expected response
+		framework.NewRequestExpect(f).Explain("foo subdomain").Port(vhostHTTPPort).
+			RequestModify(func(r *request.Request) {
+				r.HTTP().HTTPHost("foo.example.com")
+			}).
+			ExpectResp([]byte("foo")).
+			Ensure()
+
+		// The request should fail with 403 status code due to invalid ip
+		framework.NewRequestExpect(f).Explain("bar subdomain").Port(vhostHTTPPort).
+			RequestModify(func(r *request.Request) {
+				r.HTTP().HTTPHost("bar.example.com")
+			}).
+			Ensure(framework.ExpectResponseCode(403))
+	})
 })
