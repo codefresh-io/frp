@@ -2,6 +2,7 @@ package vhost
 
 import (
 	"errors"
+	frpLog "github.com/fatedier/frp/pkg/util/log"
 	"sort"
 	"strings"
 	"sync"
@@ -55,6 +56,7 @@ func (r *Routers) Add(domain, location, httpUser string, ipAllowList []string, p
 	}
 
 	var ipFilter *ipfilter.IPFilter
+	frpLog.Debug("adding allow list %s", ipAllowList)
 	if ipAllowList != nil {
 		ipFilter = ipfilter.New(ipfilter.Options{
 			AllowedIPs:     ipAllowList,

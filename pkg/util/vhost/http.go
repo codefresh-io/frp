@@ -185,12 +185,13 @@ func (rp *HTTPReverseProxy) CheckAuth(domain, location, routeByHTTPUser, user, p
 	return true
 }
 
-func (rp *HTTPReverseProxy) CheckRemoteAddress(domain, location, routeByHTTPUser, remoteAdd string) bool {
-	remoteAddWithoutPort := strings.Split(remoteAdd, ":")[0]
+func (rp *HTTPReverseProxy) CheckClientOriginIp(domain, location, routeByHTTPUser, ip string) bool {
+	ipWithoutPort := strings.Split(ip, ":")[0]
 	vr, ok := rp.getVhost(domain, location, routeByHTTPUser)
 	if ok {
 		if vr.ipFilter != nil {
-			return vr.ipFilter.Allowed(remoteAddWithoutPort)
+			frpLog.Debug("validating client origin ip %s", ipWithoutPort)
+			return vr.ipFilter.Allowed(ipWithoutPort)
 		}
 	}
 	return true
@@ -304,8 +305,19 @@ func (rp *HTTPReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	remoteAdd := req.RemoteAddr
-	if !rp.CheckRemoteAddress(domain, location, user, remoteAdd) {
+	fwdAddress := req.Header.Get("X-Forwarded-For")
+	var address = ""
+	if fwdAddress != "" {
+		address = fwdAddress
+		frpLog.Debug(address)
+		ips := strings.Split(fwdAddress, ", ")
+		if len(ips) > 1 {
+			address = ips[0]
+		}
+	} else {
+		address = req.RemoteAddr
+	}
+	if !rp.CheckClientOriginIp(domain, location, user, address) {
 		http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return
 	}
