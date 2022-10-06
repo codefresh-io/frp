@@ -185,7 +185,7 @@ func (rp *HTTPReverseProxy) CheckAuth(domain, location, routeByHTTPUser, user, p
 	return true
 }
 
-// CheckClientOriginIpAddr To prevent IP spoofing, be sure to delete any pre-existing X-Forwarded-For header coming from the client or an untrusted proxy.
+// CheckClientOriginIpAddr to prevent IP spoofing, be sure to delete any pre-existing X-Forwarded-For header coming from the client or an untrusted proxy.
 func (rp *HTTPReverseProxy) CheckClientOriginIpAddr(domain, location, routeByHTTPUser, addr string) bool {
 	if addr != "" {
 		frpLog.Debug("Received client ip addr list: %s", addr)
@@ -314,10 +314,10 @@ func (rp *HTTPReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	// identifying the originating IP address of a client connecting to a web server through a proxy server
+	// Identifying the originating IP address of a client connecting to a web server through a proxy server
 	addr := req.Header.Get("X-Forwarded-For")
-	// For direct access to the server
 	if addr == "" {
+		// For server direct access
 		addr = req.RemoteAddr
 	}
 	if !rp.CheckClientOriginIpAddr(domain, location, user, addr) {
