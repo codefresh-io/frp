@@ -185,8 +185,19 @@ func (rp *HTTPReverseProxy) CheckAuth(domain, location, routeByHTTPUser, user, p
 	return true
 }
 
-func (rp *HTTPReverseProxy) CheckClientOriginIp(domain, location, routeByHTTPUser, ip string) bool {
-	ipWithoutPort := strings.Split(ip, ":")[0]
+// CheckClientOriginIpAddr To prevent IP spoofing, be sure to delete any pre-existing X-Forwarded-For header coming from the client or an untrusted proxy.
+func (rp *HTTPReverseProxy) CheckClientOriginIpAddr(domain, location, routeByHTTPUser, fwdIpAdd string) bool {
+	var addr = ""
+	if fwdIpAdd != "" {
+		addr = fwdIpAdd
+		frpLog.Debug("Received client ip addr list: %s", fwdIpAdd)
+		ips := strings.Split(fwdIpAdd, ", ")
+		if len(ips) > 1 {
+			// Selecting the first ip in the list, it's safe to take it once we ensured the first ip cannot be set by untrusted proxies or the client
+			addr = ips[0]
+		}
+	}
+	ipWithoutPort := strings.Split(addr, ":")[0]
 	vr, ok := rp.getVhost(domain, location, routeByHTTPUser)
 	if ok {
 		if vr.ipFilter != nil {
@@ -305,19 +316,8 @@ func (rp *HTTPReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	fwdAddress := req.Header.Get("X-Forwarded-For")
-	var address = ""
-	if fwdAddress != "" {
-		address = fwdAddress
-		frpLog.Debug(address)
-		ips := strings.Split(fwdAddress, ", ")
-		if len(ips) > 1 {
-			address = ips[0]
-		}
-	} else {
-		address = req.RemoteAddr
-	}
-	if !rp.CheckClientOriginIp(domain, location, user, address) {
+	fwdIpAddr := req.Header.Get("X-Forwarded-For")
+	if !rp.CheckClientOriginIpAddr(domain, location, user, fwdIpAddr) {
 		http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return
 	}
