@@ -195,12 +195,15 @@ func (rp *HTTPReverseProxy) CheckClientOriginIpAddr(domain, location, routeByHTT
 			addr = ips[0]
 		}
 	}
-	ipWithoutPort := strings.Split(addr, ":")[0]
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return false
+	}
 	vr, ok := rp.getVhost(domain, location, routeByHTTPUser)
 	if ok {
 		if vr.ipFilter != nil {
-			frpLog.Debug("validating client origin ip %s", ipWithoutPort)
-			return vr.ipFilter.Allowed(ipWithoutPort)
+			frpLog.Debug("validating client origin ip %s", host)
+			return vr.ipFilter.Allowed(host)
 		}
 	}
 	return true
