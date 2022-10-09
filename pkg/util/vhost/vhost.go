@@ -84,6 +84,7 @@ type RouteConfig struct {
 	Username        string
 	Password        string
 	Headers         map[string]string
+	IpsAllowList    []string
 	RouteByHTTPUser string
 
 	CreateConnFn CreateConnFunc
@@ -98,12 +99,13 @@ func (v *Muxer) Listen(ctx context.Context, cfg *RouteConfig) (l *Listener, err 
 		routeByHTTPUser: cfg.RouteByHTTPUser,
 		rewriteHost:     cfg.RewriteHost,
 		userName:        cfg.Username,
+		ipsAllowList:    cfg.IpsAllowList,
 		passWord:        cfg.Password,
 		mux:             v,
 		accept:          make(chan net.Conn),
 		ctx:             ctx,
 	}
-	err = v.registryRouter.Add(cfg.Domain, cfg.Location, cfg.RouteByHTTPUser, l)
+	err = v.registryRouter.Add(cfg.Domain, cfg.Location, cfg.RouteByHTTPUser, cfg.IpsAllowList, l)
 	if err != nil {
 		return
 	}
@@ -234,6 +236,7 @@ type Listener struct {
 	rewriteHost     string
 	userName        string
 	passWord        string
+	ipsAllowList    []string
 	mux             *Muxer // for closing Muxer
 	accept          chan net.Conn
 	ctx             context.Context

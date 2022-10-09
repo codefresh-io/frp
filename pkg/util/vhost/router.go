@@ -2,9 +2,12 @@ package vhost
 
 import (
 	"errors"
+	frpLog "github.com/fatedier/frp/pkg/util/log"
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/jpillora/ipfilter"
 )
 
 var (
@@ -23,6 +26,7 @@ type Router struct {
 	domain   string
 	location string
 	httpUser string
+	ipFilter *ipfilter.IPFilter
 
 	// store any object here
 	payload interface{}
@@ -34,7 +38,7 @@ func NewRouters() *Routers {
 	}
 }
 
-func (r *Routers) Add(domain, location, httpUser string, payload interface{}) error {
+func (r *Routers) Add(domain, location, httpUser string, ipsAllowList []string, payload interface{}) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -51,10 +55,20 @@ func (r *Routers) Add(domain, location, httpUser string, payload interface{}) er
 		vrs = make([]*Router, 0, 1)
 	}
 
+	var ipFilter *ipfilter.IPFilter
+	frpLog.Debug("adding allow list %s", ipsAllowList)
+	if ipsAllowList != nil {
+		ipFilter = ipfilter.New(ipfilter.Options{
+			AllowedIPs:     ipsAllowList,
+			BlockByDefault: true,
+		})
+	}
+
 	vr := &Router{
 		domain:   domain,
 		location: location,
 		httpUser: httpUser,
+		ipFilter: ipFilter,
 		payload:  payload,
 	}
 	vrs = append(vrs, vr)
