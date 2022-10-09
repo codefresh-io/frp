@@ -38,7 +38,7 @@ func NewRouters() *Routers {
 	}
 }
 
-func (r *Routers) Add(domain, location, httpUser string, ipAllowList []string, payload interface{}) error {
+func (r *Routers) Add(domain, location, httpUser string, ipsAllowList []string, payload interface{}) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -56,10 +56,10 @@ func (r *Routers) Add(domain, location, httpUser string, ipAllowList []string, p
 	}
 
 	var ipFilter *ipfilter.IPFilter
-	frpLog.Debug("adding allow list %s", ipAllowList)
-	if ipAllowList != nil {
+	frpLog.Debug("adding allow list %s", ipsAllowList)
+	if ipsAllowList != nil {
 		ipFilter = ipfilter.New(ipfilter.Options{
-			AllowedIPs:     ipAllowList,
+			AllowedIPs:     ipsAllowList,
 			BlockByDefault: true,
 		})
 	}
