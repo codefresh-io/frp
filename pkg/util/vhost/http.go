@@ -197,6 +197,7 @@ func (rp *HTTPReverseProxy) CheckClientOriginIpAddr(domain, location, routeByHTT
 	}
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
+		frpLog.Error("address is invalid %s", err)
 		return false
 	}
 	vr, ok := rp.getVhost(domain, location, routeByHTTPUser)
