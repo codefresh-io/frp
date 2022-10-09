@@ -36,6 +36,7 @@ func init() {
 	httpCmd.PersistentFlags().StringVarP(&locations, "locations", "", "", "locations")
 	httpCmd.PersistentFlags().StringVarP(&httpUser, "http_user", "", "", "http auth user")
 	httpCmd.PersistentFlags().StringVarP(&httpPwd, "http_pwd", "", "", "http auth password")
+	httpCmd.PersistentFlags().StringVarP(&ipsAllowList, "ips_allow_list", "", "", "lists the rules to configure which IP addresses and subnet masks can access your client (e.g \"192.168.0.0/16, 255.255.0.0\")- IPv4/IPv6 support")
 	httpCmd.PersistentFlags().StringVarP(&hostHeaderRewrite, "host_header_rewrite", "", "", "host header rewrite")
 	httpCmd.PersistentFlags().BoolVarP(&useEncryption, "ue", "", false, "use encryption")
 	httpCmd.PersistentFlags().BoolVarP(&useCompression, "uc", "", false, "use compression")
@@ -70,6 +71,9 @@ var httpCmd = &cobra.Command{
 		cfg.HostHeaderRewrite = hostHeaderRewrite
 		cfg.UseEncryption = useEncryption
 		cfg.UseCompression = useCompression
+		if ipsAllowList != "" {
+			cfg.IpsAllowList = strings.Split(ipsAllowList, ",")
+		}
 
 		err = cfg.CheckForCli()
 		if err != nil {
