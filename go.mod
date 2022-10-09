@@ -22,7 +22,7 @@ require (
 	github.com/rodaine/table v1.0.1
 	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.8.4
-	golang.org/x/net v0.21.0
+	golang.org/x/net v0.35.0
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
 	gopkg.in/ini.v1 v1.62.0
