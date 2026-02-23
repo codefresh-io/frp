@@ -1,8 +1,6 @@
 module github.com/fatedier/frp
 
-go 1.23.0
-
-toolchain go1.23.4
+go 1.25.0
 
 require (
 	github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5
@@ -23,7 +21,7 @@ require (
 	github.com/rodaine/table v1.0.1
 	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.8.4
-	golang.org/x/net v0.38.0
+	golang.org/x/net v0.45.0
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
 	gopkg.in/ini.v1 v1.62.0
@@ -60,9 +58,9 @@ require (
 	github.com/templexxx/xor v0.0.0-20191217153810-f85b25db303b // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce // indirect
-	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/crypto v0.42.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/text v0.29.0 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/protobuf v1.26.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.4.1 // indirect
