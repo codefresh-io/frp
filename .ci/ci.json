@@ -4,16 +4,16 @@
     "artifacts": [
       {
         "imageName": "frpc",
-        "dockerfileDir": "dockerfiles",
-        "dockerfileName": "Dockerfile-for-frpc",
+        "buildContext": ".",
+        "dockerfileName": "./dockerfiles/Dockerfile-for-frpc",
         "imageRepoProd": "quay.io/codefresh",
         "imageRepoDev": "quay.io/codefresh/dev",
         "imageCacheRepo": "quay.io/codefresh/dev/cache"
       },
       {
         "imageName": "frps",
-        "dockerfileDir": "dockerfiles",
-        "dockerfileName": "Dockerfile-for-frps",
+        "buildContext": ".",
+        "dockerfileName": "./dockerfiles/Dockerfile-for-frps",
         "imageRepoProd": "quay.io/codefresh",
         "imageRepoDev": "quay.io/codefresh/dev",
         "imageCacheRepo": "quay.io/codefresh/dev/cache"
