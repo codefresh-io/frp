@@ -1,0 +1,16 @@
+dockerfiles/Dockerfile-for-frps
+  h_104939d4aa3383 8
+dockerfiles/Dockerfile-for-frpc
+  h_104939d4aa3383 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.11",
+  "base_commit_sha": "519f8f205156842028b8c4df4882618bb33a00d6",
+  "prompts": {},
+  "humans": {
+    "h_104939d4aa3383": {
+      "author": "Vasil Sudakou <vasil.sudakov@codefresh.io>"
+    }
+  }
+}
