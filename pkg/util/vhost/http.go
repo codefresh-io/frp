@@ -15,35 +15,33 @@
 package vhost
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
+	stdlog "log"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"time"
 
-	frpLog "github.com/fatedier/frp/pkg/util/log"
-	"github.com/fatedier/frp/pkg/util/util"
-	frpIo "github.com/fatedier/golib/io"
-
+	libio "github.com/fatedier/golib/io"
 	"github.com/fatedier/golib/pool"
+
+	httppkg "github.com/fatedier/frp/pkg/util/http"
+	"github.com/fatedier/frp/pkg/util/log"
 )
 
-var (
-	ErrNoRouteFound = errors.New("no route found")
-)
+var ErrNoRouteFound = errors.New("no route found")
 
 type HTTPReverseProxyOptions struct {
 	ResponseHeaderTimeoutS int64
 }
 
 type HTTPReverseProxy struct {
-	proxy       *ReverseProxy
+	proxy       http.Handler
 	vhostRouter *Routers
 
 	responseHeaderTimeout time.Duration
@@ -57,23 +55,35 @@ func NewHTTPReverseProxy(option HTTPReverseProxyOptions, vhostRouter *Routers) *
 		responseHeaderTimeout: time.Duration(option.ResponseHeaderTimeoutS) * time.Second,
 		vhostRouter:           vhostRouter,
 	}
-	proxy := &ReverseProxy{
+	proxy := &httputil.ReverseProxy{
 		// Modify incoming requests by route policies.
-		Director: func(req *http.Request) {
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.Out.Header["X-Forwarded-For"] = r.In.Header["X-Forwarded-For"]
+			r.SetXForwarded()
+			req := r.Out
 			req.URL.Scheme = "http"
-			url := req.Context().Value(RouteInfoURL).(string)
-			routeByHTTPUser := req.Context().Value(RouteInfoHTTPUser).(string)
-			oldHost, _ := util.CanonicalHost(req.Context().Value(RouteInfoHost).(string))
-			rc := rp.GetRouteConfig(oldHost, url, routeByHTTPUser)
+			reqRouteInfo := req.Context().Value(RouteInfoKey).(*RequestRouteInfo)
+			originalHost, _ := httppkg.CanonicalHost(reqRouteInfo.Host)
+
+			rc := req.Context().Value(RouteConfigKey).(*RouteConfig)
 			if rc != nil {
 				if rc.RewriteHost != "" {
 					req.Host = rc.RewriteHost
 				}
-				// Set {domain}.{location}.{routeByHTTPUser} as URL host here to let http transport reuse connections.
-				// TODO(fatedier): use proxy name instead?
+
+				var endpoint string
+				if rc.ChooseEndpointFn != nil {
+					// ignore error here, it will use CreateConnFn instead later
+					endpoint, _ = rc.ChooseEndpointFn()
+					reqRouteInfo.Endpoint = endpoint
+					log.Tracef("choose endpoint name [%s] for http request host [%s] path [%s] httpuser [%s]",
+						endpoint, originalHost, reqRouteInfo.URL, reqRouteInfo.HTTPUser)
+				}
+				// Set {domain}.{location}.{routeByHTTPUser}.{endpoint} as URL host here to let http transport reuse connections.
 				req.URL.Host = rc.Domain + "." +
 					base64.StdEncoding.EncodeToString([]byte(rc.Location)) + "." +
-					base64.StdEncoding.EncodeToString([]byte(rc.RouteByHTTPUser))
+					base64.StdEncoding.EncodeToString([]byte(rc.RouteByHTTPUser)) + "." +
+					base64.StdEncoding.EncodeToString([]byte(endpoint))
 
 				for k, v := range rc.Headers {
 					req.Header.Set(k, v)
@@ -81,18 +91,23 @@ func NewHTTPReverseProxy(option HTTPReverseProxyOptions, vhostRouter *Routers) *
 			} else {
 				req.URL.Host = req.Host
 			}
-
+		},
+		ModifyResponse: func(r *http.Response) error {
+			rc := r.Request.Context().Value(RouteConfigKey).(*RouteConfig)
+			if rc != nil {
+				for k, v := range rc.ResponseHeaders {
+					r.Header.Set(k, v)
+				}
+			}
+			return nil
 		},
 		// Create a connection to one proxy routed by route policy.
 		Transport: &http.Transport{
 			ResponseHeaderTimeout: rp.responseHeaderTimeout,
 			IdleConnTimeout:       60 * time.Second,
+			MaxIdleConnsPerHost:   5,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				url := ctx.Value(RouteInfoURL).(string)
-				host, _ := util.CanonicalHost(ctx.Value(RouteInfoHost).(string))
-				routerByHTTPUser := ctx.Value(RouteInfoHTTPUser).(string)
-				remote := ctx.Value(RouteInfoRemote).(string)
-				return rp.CreateConnection(host, url, routerByHTTPUser, remote)
+				return rp.CreateConnection(ctx.Value(RouteInfoKey).(*RequestRouteInfo), true)
 			},
 			Proxy: func(req *http.Request) (*url.URL, error) {
 				// Use proxy mode if there is host in HTTP first request line.
@@ -102,19 +117,25 @@ func NewHTTPReverseProxy(option HTTPReverseProxyOptions, vhostRouter *Routers) *
 				// Normal:
 				// GET / HTTP/1.1
 				// Host: example.com
-				urlHost := req.Context().Value(RouteInfoURLHost).(string)
+				urlHost := req.Context().Value(RouteInfoKey).(*RequestRouteInfo).URLHost
 				if urlHost != "" {
 					return req.URL, nil
 				}
 				return nil, nil
 			},
 		},
-		BufferPool: newWrapPool(),
-		ErrorLog:   log.New(newWrapLogger(), "", 0),
+		BufferPool: pool.NewBuffer(32 * 1024),
+		ErrorLog:   stdlog.New(log.NewWriteLogger(log.WarnLevel, 2), "", 0),
 		ErrorHandler: func(rw http.ResponseWriter, req *http.Request, err error) {
-			frpLog.Warn("do http proxy request [host: %s] error: %v", req.Host, err)
+			log.Logf(log.WarnLevel, 1, "do http proxy request [host: %s] error: %v", req.Host, err)
+			if err != nil {
+				if e, ok := err.(net.Error); ok && e.Timeout() {
+					rw.WriteHeader(http.StatusGatewayTimeout)
+					return
+				}
+			}
 			rw.WriteHeader(http.StatusNotFound)
-			rw.Write(getNotFoundPageContent())
+			_, _ = rw.Write(getNotFoundPageContent())
 		},
 	}
 	rp.proxy = proxy
@@ -136,121 +157,71 @@ func (rp *HTTPReverseProxy) UnRegister(routeCfg RouteConfig) {
 	rp.vhostRouter.Del(routeCfg.Domain, routeCfg.Location, routeCfg.RouteByHTTPUser)
 }
 
+// CheckClientOriginIPAddr checks addr against the ip allow list configured for the matched route.
+// To prevent IP spoofing, be sure to delete any pre-existing X-Forwarded-For header coming from
+// the client or an untrusted proxy before it reaches frps.
+func (rp *HTTPReverseProxy) CheckClientOriginIPAddr(domain, location, routeByHTTPUser, addr string) bool {
+	if addr != "" {
+		// Selecting the first ip in the list; it's safe to take it once we ensure the first ip
+		// cannot be set by untrusted proxies or the client.
+		if ips := strings.Split(addr, ", "); len(ips) > 1 {
+			addr = ips[0]
+		}
+	}
+	vr, ok := rp.vhostRouter.getByRoute(domain, location, routeByHTTPUser)
+	if ok && vr.ipFilter != nil {
+		return vr.ipFilter.Allowed(addr)
+	}
+	return true
+}
+
 func (rp *HTTPReverseProxy) GetRouteConfig(domain, location, routeByHTTPUser string) *RouteConfig {
-	vr, ok := rp.getVhost(domain, location, routeByHTTPUser)
+	vr, ok := rp.vhostRouter.getByRoute(domain, location, routeByHTTPUser)
 	if ok {
-		frpLog.Debug("get new HTTP request host [%s] path [%s] httpuser [%s]", domain, location, routeByHTTPUser)
+		log.Debugf("get new http request host [%s] path [%s] httpuser [%s]", domain, location, routeByHTTPUser)
 		return vr.payload.(*RouteConfig)
 	}
 	return nil
 }
 
-func (rp *HTTPReverseProxy) GetRealHost(domain, location, routeByHTTPUser string) (host string) {
-	vr, ok := rp.getVhost(domain, location, routeByHTTPUser)
-	if ok {
-		host = vr.payload.(*RouteConfig).RewriteHost
-	}
-	return
-}
-
-func (rp *HTTPReverseProxy) GetHeaders(domain, location, routeByHTTPUser string) (headers map[string]string) {
-	vr, ok := rp.getVhost(domain, location, routeByHTTPUser)
-	if ok {
-		headers = vr.payload.(*RouteConfig).Headers
-	}
-	return
-}
-
 // CreateConnection create a new connection by route config
-func (rp *HTTPReverseProxy) CreateConnection(domain, location, routeByHTTPUser string, remoteAddr string) (net.Conn, error) {
-	vr, ok := rp.getVhost(domain, location, routeByHTTPUser)
+func (rp *HTTPReverseProxy) CreateConnection(reqRouteInfo *RequestRouteInfo, byEndpoint bool) (net.Conn, error) {
+	host, _ := httppkg.CanonicalHost(reqRouteInfo.Host)
+	vr, ok := rp.vhostRouter.getByRoute(host, reqRouteInfo.URL, reqRouteInfo.HTTPUser)
 	if ok {
+		if byEndpoint {
+			fn := vr.payload.(*RouteConfig).CreateConnByEndpointFn
+			if fn != nil {
+				return fn(reqRouteInfo.Endpoint, reqRouteInfo.RemoteAddr)
+			}
+		}
 		fn := vr.payload.(*RouteConfig).CreateConnFn
 		if fn != nil {
-			return fn(remoteAddr)
+			return fn(reqRouteInfo.RemoteAddr)
 		}
 	}
-	return nil, fmt.Errorf("%v: %s %s %s", ErrNoRouteFound, domain, location, routeByHTTPUser)
+	return nil, fmt.Errorf("%v: %s %s %s", ErrNoRouteFound, host, reqRouteInfo.URL, reqRouteInfo.HTTPUser)
 }
 
-func (rp *HTTPReverseProxy) CheckAuth(domain, location, routeByHTTPUser, user, passwd string) bool {
-	vr, ok := rp.getVhost(domain, location, routeByHTTPUser)
-	if ok {
-		checkUser := vr.payload.(*RouteConfig).Username
-		checkPasswd := vr.payload.(*RouteConfig).Password
-		if (checkUser != "" || checkPasswd != "") && (checkUser != user || checkPasswd != passwd) {
+func checkRouteAuthByRequest(req *http.Request, rc *RouteConfig) bool {
+	if rc == nil {
+		return true
+	}
+	if rc.Username == "" && rc.Password == "" {
+		return true
+	}
+
+	if req.URL.Host != "" {
+		proxyAuth := req.Header.Get("Proxy-Authorization")
+		if proxyAuth == "" {
 			return false
 		}
-	}
-	return true
-}
-
-// CheckClientOriginIpAddr to prevent IP spoofing, be sure to delete any pre-existing X-Forwarded-For header coming from the client or an untrusted proxy.
-func (rp *HTTPReverseProxy) CheckClientOriginIpAddr(domain, location, routeByHTTPUser, addr string) bool {
-	if addr != "" {
-		frpLog.Debug("Received client ip addr: %s", addr)
-		ips := strings.Split(addr, ", ")
-		if len(ips) > 1 {
-			// Selecting the first ip in the list, it's safe to take it once we ensured the first ip cannot be set by untrusted proxies or the client
-			addr = ips[0]
-		}
-	}
-	vr, ok := rp.getVhost(domain, location, routeByHTTPUser)
-	if ok {
-		if vr.ipFilter != nil {
-			frpLog.Debug("validating client origin ip %s", addr)
-			return vr.ipFilter.Allowed(addr)
-		}
-	}
-	return true
-}
-
-// getVhost trys to get vhost router by route policy.
-func (rp *HTTPReverseProxy) getVhost(domain, location, routeByHTTPUser string) (*Router, bool) {
-	findRouter := func(inDomain, inLocation, inRouteByHTTPUser string) (*Router, bool) {
-		vr, ok := rp.vhostRouter.Get(inDomain, inLocation, inRouteByHTTPUser)
-		if ok {
-			return vr, ok
-		}
-		// Try to check if there is one proxy that doesn't specify routerByHTTPUser, it means match all.
-		vr, ok = rp.vhostRouter.Get(inDomain, inLocation, "")
-		if ok {
-			return vr, ok
-		}
-		return nil, false
+		user, passwd, ok := httppkg.ParseBasicAuth(proxyAuth)
+		return ok && user == rc.Username && passwd == rc.Password
 	}
 
-	// First we check the full hostname
-	// if not exist, then check the wildcard_domain such as *.example.com
-	vr, ok := findRouter(domain, location, routeByHTTPUser)
-	if ok {
-		return vr, ok
-	}
-
-	// e.g. domain = test.example.com, try to match wildcard domains.
-	// *.example.com
-	// *.com
-	domainSplit := strings.Split(domain, ".")
-	for {
-		if len(domainSplit) < 3 {
-			break
-		}
-
-		domainSplit[0] = "*"
-		domain = strings.Join(domainSplit, ".")
-		vr, ok = findRouter(domain, location, routeByHTTPUser)
-		if ok {
-			return vr, true
-		}
-		domainSplit = domainSplit[1:]
-	}
-
-	// Finally, try to check if there is one proxy that domain is "*" means match all domains.
-	vr, ok = findRouter("*", location, routeByHTTPUser)
-	if ok {
-		return vr, true
-	}
-	return nil, false
+	user, passwd, ok := req.BasicAuth()
+	return ok && user == rc.Username && passwd == rc.Password
 }
 
 func (rp *HTTPReverseProxy) connectHandler(rw http.ResponseWriter, req *http.Request) {
@@ -266,85 +237,82 @@ func (rp *HTTPReverseProxy) connectHandler(rw http.ResponseWriter, req *http.Req
 		return
 	}
 
-	url := req.Context().Value(RouteInfoURL).(string)
-	routeByHTTPUser := req.Context().Value(RouteInfoHTTPUser).(string)
-	domain, _ := util.CanonicalHost(req.Context().Value(RouteInfoHost).(string))
-	remoteAddr := req.Context().Value(RouteInfoRemote).(string)
-
-	remote, err := rp.CreateConnection(domain, url, routeByHTTPUser, remoteAddr)
+	remote, err := rp.CreateConnection(req.Context().Value(RouteInfoKey).(*RequestRouteInfo), false)
 	if err != nil {
-		http.Error(rw, "Failed", http.StatusBadRequest)
+		_ = NotFoundResponse().Write(client)
 		client.Close()
 		return
 	}
-	req.Write(remote)
-	go frpIo.Join(remote, client)
+	_ = req.Write(remote)
+	go libio.Join(remote, client)
+}
+
+func getRequestRouteUser(req *http.Request) string {
+	if req.URL.Host != "" {
+		proxyAuth := req.Header.Get("Proxy-Authorization")
+		if proxyAuth == "" {
+			// Preserve legacy proxy-mode routing when clients send only Authorization,
+			// so requests still hit the matched route and return 407 instead of 404.
+			// Auth validation intentionally does not share this fallback.
+			user, _, _ := req.BasicAuth()
+			return user
+		}
+		user, _, _ := httppkg.ParseBasicAuth(proxyAuth)
+		return user
+	}
+	user, _, _ := req.BasicAuth()
+	return user
 }
 
 func (rp *HTTPReverseProxy) injectRequestInfoToCtx(req *http.Request) *http.Request {
-	newctx := req.Context()
-	newctx = context.WithValue(newctx, RouteInfoURL, req.URL.Path)
-	newctx = context.WithValue(newctx, RouteInfoHost, req.Host)
-	newctx = context.WithValue(newctx, RouteInfoURLHost, req.URL.Host)
+	user := getRequestRouteUser(req)
 
-	user := ""
-	// If url host isn't empty, it's a proxy request. Get http user from Proxy-Authorization header.
-	if req.URL.Host != "" {
-		proxyAuth := req.Header.Get("Proxy-Authorization")
-		if proxyAuth != "" {
-			user, _, _ = parseBasicAuth(proxyAuth)
-		}
+	reqRouteInfo := &RequestRouteInfo{
+		URL:        req.URL.Path,
+		Host:       req.Host,
+		HTTPUser:   user,
+		RemoteAddr: req.RemoteAddr,
+		URLHost:    req.URL.Host,
 	}
-	if user == "" {
-		user, _, _ = req.BasicAuth()
-	}
-	newctx = context.WithValue(newctx, RouteInfoHTTPUser, user)
-	newctx = context.WithValue(newctx, RouteInfoRemote, req.RemoteAddr)
+
+	originalHost, _ := httppkg.CanonicalHost(reqRouteInfo.Host)
+	rc := rp.GetRouteConfig(originalHost, reqRouteInfo.URL, reqRouteInfo.HTTPUser)
+
+	newctx := req.Context()
+	newctx = context.WithValue(newctx, RouteInfoKey, reqRouteInfo)
+	newctx = context.WithValue(newctx, RouteConfigKey, rc)
 	return req.Clone(newctx)
 }
 
 func (rp *HTTPReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	domain, _ := util.CanonicalHost(req.Host)
-	location := req.URL.Path
-	user, passwd, _ := req.BasicAuth()
-	if !rp.CheckAuth(domain, location, user, user, passwd) {
-		rw.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-		http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		return
-	}
-
-	// Identifying the originating IP address of a client connecting to a web server through a proxy server
-	addr := req.Header.Get("X-Forwarded-For")
-	if addr == "" {
-		// For server direct access, remote address is in "IP:port" format
-		addr, _, _ = net.SplitHostPort(req.RemoteAddr)
-	}
-	if !rp.CheckClientOriginIpAddr(domain, location, user, addr) {
-		http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
-		return
-	}
-
 	newreq := rp.injectRequestInfoToCtx(req)
+	rc := newreq.Context().Value(RouteConfigKey).(*RouteConfig)
+	if !checkRouteAuthByRequest(req, rc) {
+		if req.URL.Host != "" {
+			rw.Header().Set("Proxy-Authenticate", `Basic realm="Restricted"`)
+			http.Error(rw, http.StatusText(http.StatusProxyAuthRequired), http.StatusProxyAuthRequired)
+		} else {
+			rw.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+			http.Error(rw, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		}
+		return
+	}
+
+	if rc != nil {
+		// Identifying the originating IP address of a client connecting through a proxy server.
+		addr := req.Header.Get("X-Forwarded-For")
+		if addr == "" {
+			addr, _, _ = net.SplitHostPort(req.RemoteAddr)
+		}
+		if !rp.CheckClientOriginIPAddr(rc.Domain, rc.Location, rc.RouteByHTTPUser, addr) {
+			http.Error(rw, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			return
+		}
+	}
+
 	if req.Method == http.MethodConnect {
 		rp.connectHandler(rw, newreq)
 	} else {
 		rp.proxy.ServeHTTP(rw, newreq)
 	}
-}
-
-type wrapPool struct{}
-
-func newWrapPool() *wrapPool { return &wrapPool{} }
-
-func (p *wrapPool) Get() []byte { return pool.GetBuf(32 * 1024) }
-
-func (p *wrapPool) Put(buf []byte) { pool.PutBuf(buf) }
-
-type wrapLogger struct{}
-
-func newWrapLogger() *wrapLogger { return &wrapLogger{} }
-
-func (l *wrapLogger) Write(p []byte) (n int, err error) {
-	frpLog.Warn("%s", string(bytes.TrimRight(p, "\n")))
-	return len(p), nil
 }
