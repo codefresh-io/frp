@@ -390,7 +390,7 @@ var _ = ginkgo.Describe("[Feature: HTTP]", func() {
 		bazPort := f.AllocPort()
 		f.RunServer("", newHTTPServer(bazPort, "baz"))
 
-		clientConf := consts.DefaultClientConfig
+		clientConf := consts.LegacyDefaultClientConfig
 		clientConf += fmt.Sprintf(`
 			[foo]
 			type = http
