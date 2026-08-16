@@ -1,0 +1,56 @@
+pkg/config/v1/proxy.go
+  s_e4ca459ad35331::t_bd212152b5d2ac 323,339,354,365
+test/e2e/v1/basic/http.go
+  s_e4ca459ad35331::t_6313c58247f148 539-603
+pkg/util/vhost/router_test.go
+  s_e4ca459ad35331::t_6281710f73b934 230
+  s_e4ca459ad35331::t_09932e55bc20ac 29-32,65-72,157-158,193
+conf/frpc_full_example.toml
+  s_e4ca459ad35331::t_b96cb3cda4c842 247-249
+pkg/config/legacy/proxy.go
+  s_e4ca459ad35331::t_b864f65519b45e 232
+conf/legacy/frpc_legacy_full.ini
+  s_e4ca459ad35331::t_2393891481dfe9 231-233
+pkg/util/vhost/vhost.go
+  s_e4ca459ad35331::t_e1ef70d9bbc69c 122
+  s_e4ca459ad35331::t_8aa6530b13d5e1 144
+pkg/util/vhost/http.go
+  s_e4ca459ad35331::t_f03c4b528796bd 160-177
+  s_e4ca459ad35331::t_894f8a7a9cbfae 148
+  s_e4ca459ad35331::t_046c4019e481dd 27
+  s_e4ca459ad35331::t_47b97e11bc4896 301-312
+go.mod
+  s_e4ca459ad35331::t_f7e1680842ce7c 13
+pkg/msg/msg.go
+  s_e4ca459ad35331::t_de5e64c3801237 123
+pkg/config/legacy/conversion.go
+  s_e4ca459ad35331::t_a337ffa1d87947 280
+pkg/config/flags.go
+  s_e4ca459ad35331::t_1e5e2a95f7d70b 79-80
+pkg/util/vhost/router.go
+  s_e4ca459ad35331::t_c9d7d86be736b4 27
+  s_e4ca459ad35331::t_fdef6189623d4a 39,58-65,70
+  s_e4ca459ad35331::t_cebcdd00ae5d08 9-10
+server/proxy/http.go
+  s_e4ca459ad35331::t_f094a726311c34 64
+server/group/http.go
+  s_e4ca459ad35331::t_b0f1d1f2d5aa87 88
+go.sum
+  s_e4ca459ad35331::t_a8d144eb1f1980 65-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "5bbebf7813b83bed8565b546e998646a9d1dd826",
+  "prompts": {},
+  "sessions": {
+    "s_e4ca459ad35331": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "302afeaa-a640-4b07-a7b2-e2f9214614ab",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}
