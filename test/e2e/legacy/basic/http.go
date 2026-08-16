@@ -374,7 +374,7 @@ var _ = ginkgo.Describe("[Feature: HTTP]", func() {
 		framework.ExpectEqualValues(consts.TestString, string(msg))
 	})
 
-	It("Ip allow list", func() {
+	ginkgo.It("Ip allow list", func() {
 		vhostHTTPPort := f.AllocPort()
 		serverConf := getDefaultServerConf(vhostHTTPPort)
 		serverConf += `
@@ -396,23 +396,21 @@ var _ = ginkgo.Describe("[Feature: HTTP]", func() {
 			type = http
 			local_port = %d
 			subdomain = foo
-			ips_allow_list = ""
-
 
 			[bar]
 			type = http
 			local_port = %d
 			subdomain = bar
-			ips_allow_list = "127.0.0.1/16"
+			ips_allow_list = 127.0.0.1/16
 
 			[baz]
 			type = http
 			local_port = %d
 			subdomain = baz
-			ips_allow_list = "127.1.0.1/16"
+			ips_allow_list = 127.1.0.1/16
 			`, fooPort, barPort, bazPort)
 
-		f.RunProcesses([]string{serverConf}, []string{clientConf})
+		f.RunProcesses(serverConf, []string{clientConf})
 
 		// The request should pass in case in allow list is empty string
 		framework.NewRequestExpect(f).Explain("foo subdomain").Port(vhostHTTPPort).
