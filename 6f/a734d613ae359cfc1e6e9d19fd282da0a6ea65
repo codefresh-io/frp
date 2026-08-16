@@ -1,0 +1,19 @@
+.ci/ci.json
+  s_e4ca459ad35331::t_ffb141bba26233 1-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "6fa734d613ae359cfc1e6e9d19fd282da0a6ea65",
+  "prompts": {},
+  "sessions": {
+    "s_e4ca459ad35331": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "302afeaa-a640-4b07-a7b2-e2f9214614ab",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}
