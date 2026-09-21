@@ -1,0 +1,19 @@
+test/e2e/legacy/basic/http.go
+  s_e4ca459ad35331::t_a5c74ae6b18d67 377,404,410,413
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "92d541dde00b8aebe4036fdaf1a8c9ecf1869ba0",
+  "prompts": {},
+  "sessions": {
+    "s_e4ca459ad35331": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "302afeaa-a640-4b07-a7b2-e2f9214614ab",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}

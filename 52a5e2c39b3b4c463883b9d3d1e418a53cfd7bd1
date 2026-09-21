@@ -1,0 +1,23 @@
+dockerfiles/Dockerfile-for-frps
+  s_e4ca459ad35331::t_ce7ae6c0682f65 25
+Makefile
+  s_e4ca459ad35331::t_cddc2d01dd0fd4 41,44
+dockerfiles/Dockerfile-for-frpc
+  s_e4ca459ad35331::t_b8512ffd6ec141 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "52a5e2c39b3b4c463883b9d3d1e418a53cfd7bd1",
+  "prompts": {},
+  "sessions": {
+    "s_e4ca459ad35331": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "302afeaa-a640-4b07-a7b2-e2f9214614ab",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}
