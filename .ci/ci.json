@@ -22,12 +22,12 @@
     "tests": [
       {
         "name": "unit",
-        "image": "golang:1.25",
+        "image": "golang:1.27",
         "command": "make test"
       },
       {
         "name": "e2e",
-        "image": "golang:1.25",
+        "image": "golang:1.27",
         "command": "make build && make e2e"
       }
     ]
