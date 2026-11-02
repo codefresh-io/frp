@@ -1,0 +1,21 @@
+dockerfiles/Dockerfile-for-frps
+  h_51acfbafc7319b 8
+go.mod
+  h_51acfbafc7319b 3,24
+  h_51acfbafc7319b 61-63
+dockerfiles/Dockerfile-for-frpc
+  h_51acfbafc7319b 8
+go.sum
+  h_51acfbafc7319b 417-418,480-481,537-538,549-550
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "828d32dc1151af50a4ddcb7cc6b5eb69dd0d85fd",
+  "prompts": {},
+  "humans": {
+    "h_51acfbafc7319b": {
+      "author": "vitaliichyrka <vitalii.chyrka@codefresh.io>"
+    }
+  }
+}
